@@ -2,6 +2,8 @@
 
 A small macOS menu bar app that saves selected clipboard content to a local folder. It has no network code, telemetry, or cloud sync. Clipboard contents can be sensitive; choose a private destination and pause or quit the app whenever you do not want it recording. A destination managed by iCloud Drive or another sync service may still be uploaded by that separate service, so choose a non-synced folder to keep the archive on this Mac.
 
+Licensed under the [MIT License](LICENSE). See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
 ## Build and first run
 
 Requirements: macOS 13 or later and Xcode Command Line Tools / Swift 5.9 or later.
@@ -44,6 +46,6 @@ Items use UTC timestamped names. Existing names are never overwritten; a numeric
 - The app is unsigned and intended for local source builds. macOS may present its normal warning for an unsigned app; this project does not weaken Gatekeeper or security settings.
 - No automatic startup, installer, notarization, or distribution packaging is included.
 
-## Project status
+## License
 
-This repository contains an initial local implementation. No license has been selected. Do not redistribute it until the owner chooses a license and reviews the project for release.
+Copyright (c) 2026 tori-create-7991. The software is provided under the MIT License; see [LICENSE](LICENSE) for the full terms.
