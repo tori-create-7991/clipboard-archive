@@ -9,16 +9,16 @@ struct ArchivePayload {
 
 enum ArchivePayloadSelector {
     static func select(
-        finderURLs: [URL],
+        finderURLs: () -> [URL],
         finderFileMode: FinderFileMode,
-        pngData: Data?,
-        tiffAsPNGData: Data?,
-        urlString: String?,
-        richTextData: Data?,
-        htmlData: Data?,
-        text: String?
+        pngData: () -> Data?,
+        tiffAsPNGData: () -> Data?,
+        urlString: () -> String?,
+        richTextData: () -> Data?,
+        htmlData: () -> Data?,
+        text: () -> String?
     ) throws -> ArchivePayload? {
-        let localFiles = finderURLs.filter(\.isFileURL)
+        let localFiles = finderFileMode == .ignore ? [] : finderURLs().filter(\.isFileURL)
         if !localFiles.isEmpty {
             switch finderFileMode {
             case .ignore:
@@ -32,25 +32,28 @@ enum ArchivePayloadSelector {
             }
         }
 
-        if let pngData {
-            return ArchivePayload(data: pngData, baseName: "image", fileExtension: "png")
+        if let png = pngData() {
+            return ArchivePayload(data: png, baseName: "image", fileExtension: "png")
         }
-        if let tiffAsPNGData {
-            return ArchivePayload(data: tiffAsPNGData, baseName: "image", fileExtension: "png")
+        if let tiffAsPNG = tiffAsPNGData() {
+            return ArchivePayload(data: tiffAsPNG, baseName: "image", fileExtension: "png")
         }
 
-        if let urlString, let url = URL(string: urlString), url.scheme != nil {
+        if let urlString = urlString(),
+           let url = URL(string: urlString),
+           url.scheme != nil,
+           !(finderFileMode == .ignore && url.isFileURL) {
             return ArchivePayload(data: try ArchiveFormat.weblocData(for: url), baseName: "link", fileExtension: "webloc")
         }
 
-        if let richTextData {
-            return ArchivePayload(data: richTextData, baseName: "rich-text", fileExtension: "rtf")
+        if let richText = richTextData() {
+            return ArchivePayload(data: richText, baseName: "rich-text", fileExtension: "rtf")
         }
-        if let htmlData {
-            return ArchivePayload(data: htmlData, baseName: "rich-text", fileExtension: "html")
+        if let html = htmlData() {
+            return ArchivePayload(data: html, baseName: "rich-text", fileExtension: "html")
         }
 
-        if let text, !text.isEmpty {
+        if let text = text(), !text.isEmpty {
             return ArchivePayload(data: Data(text.utf8), baseName: "text", fileExtension: "txt")
         }
         return nil

@@ -58,44 +58,36 @@ final class ClipboardMonitor {
     }
 
     private func payload(from pasteboard: NSPasteboard) throws -> ArchivePayload? {
-        let objectURLs = state.finderFileMode != .ignore || state.savesURLs
-            ? pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] ?? []
-            : []
-        let pngData = state.savesImages ? pasteboard.data(forType: .png) : nil
-        let tiffAsPNGData: Data?
-        if state.savesImages,
-           let tiff = pasteboard.data(forType: .tiff),
-           let bitmap = NSBitmapImageRep(data: tiff) {
-            tiffAsPNGData = bitmap.representation(using: .png, properties: [:])
-        } else {
-            tiffAsPNGData = nil
+        var cachedObjectURLs: [URL]?
+        func objectURLs() -> [URL] {
+            if let cachedObjectURLs { return cachedObjectURLs }
+            let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] ?? []
+            cachedObjectURLs = urls
+            return urls
         }
-
-        let urlString: String?
-        if state.savesURLs {
-            urlString = pasteboard.string(forType: .URL)
-                ?? objectURLs.first?.absoluteString
-                ?? pasteboard.string(forType: .string).flatMap { candidate in
-                    guard let url = URL(string: candidate), ["http", "https", "mailto", "ftp"].contains(url.scheme?.lowercased() ?? "") else { return nil }
-                    return candidate
-                }
-        } else {
-            urlString = nil
-        }
-
-        let rtfData = state.savesRichText ? pasteboard.data(forType: NSPasteboard.PasteboardType("public.rtf")) : nil
-        let htmlData = state.savesRichText ? pasteboard.data(forType: NSPasteboard.PasteboardType("public.html")) : nil
-        let text = state.savesText ? pasteboard.string(forType: .string) : nil
 
         return try ArchivePayloadSelector.select(
             finderURLs: objectURLs,
             finderFileMode: state.finderFileMode,
-            pngData: pngData,
-            tiffAsPNGData: tiffAsPNGData,
-            urlString: urlString,
-            richTextData: rtfData,
-            htmlData: htmlData,
-            text: text
+            pngData: { state.savesImages ? pasteboard.data(forType: .png) : nil },
+            tiffAsPNGData: {
+                guard state.savesImages,
+                      let tiff = pasteboard.data(forType: .tiff),
+                      let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
+                return bitmap.representation(using: .png, properties: [:])
+            },
+            urlString: {
+                guard state.savesURLs else { return nil }
+                return pasteboard.string(forType: .URL)
+                    ?? objectURLs().first?.absoluteString
+                    ?? pasteboard.string(forType: .string).flatMap { candidate in
+                    guard let url = URL(string: candidate), ["http", "https", "mailto", "ftp"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+                    return candidate
+                }
+            },
+            richTextData: { state.savesRichText ? pasteboard.data(forType: NSPasteboard.PasteboardType("public.rtf")) : nil },
+            htmlData: { state.savesRichText ? pasteboard.data(forType: NSPasteboard.PasteboardType("public.html")) : nil },
+            text: { state.savesText ? pasteboard.string(forType: .string) : nil }
         )
     }
 }

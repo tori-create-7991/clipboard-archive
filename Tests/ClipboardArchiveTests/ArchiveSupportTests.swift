@@ -28,56 +28,92 @@ final class ArchiveSupportTests: XCTestCase {
 
     func testPayloadSelectorUsesRepresentationPriorityAndPreferences() throws {
         let payload = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: [],
+            finderURLs: { [] },
             finderFileMode: .ignore,
-            pngData: Data("png".utf8),
-            tiffAsPNGData: Data("converted tiff".utf8),
-            urlString: "https://example.com",
-            richTextData: Data("rtf".utf8),
-            htmlData: Data("html".utf8),
-            text: "plain"
+            pngData: { Data("png".utf8) },
+            tiffAsPNGData: { Data("converted tiff".utf8) },
+            urlString: { "https://example.com" },
+            richTextData: { Data("rtf".utf8) },
+            htmlData: { Data("html".utf8) },
+            text: { "plain" }
         ))
         XCTAssertEqual(payload.fileExtension, "png")
         XCTAssertEqual(payload.data, Data("png".utf8))
 
         let urlPayload = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: [],
+            finderURLs: { [] },
             finderFileMode: .ignore,
-            pngData: nil,
-            tiffAsPNGData: nil,
-            urlString: "https://example.com",
-            richTextData: Data("rtf".utf8),
-            htmlData: Data("html".utf8),
-            text: "plain"
+            pngData: { nil },
+            tiffAsPNGData: { nil },
+            urlString: { "https://example.com" },
+            richTextData: { Data("rtf".utf8) },
+            htmlData: { Data("html".utf8) },
+            text: { "plain" }
         ))
         XCTAssertEqual(urlPayload.fileExtension, "webloc")
         let plist = try PropertyListSerialization.propertyList(from: urlPayload.data, format: nil) as? [String: String]
         XCTAssertEqual(plist?["URL"], "https://example.com")
     }
 
+    func testPayloadSelectorDoesNotReadLowerPriorityRepresentations() throws {
+        var readTIFF = false
+        var readURL = false
+        var readRichText = false
+        var readText = false
+
+        let payload = try XCTUnwrap(ArchivePayloadSelector.select(
+            finderURLs: { [] },
+            finderFileMode: .ignore,
+            pngData: { Data("png".utf8) },
+            tiffAsPNGData: {
+                readTIFF = true
+                return Data("tiff".utf8)
+            },
+            urlString: {
+                readURL = true
+                return "https://example.com"
+            },
+            richTextData: {
+                readRichText = true
+                return Data("rtf".utf8)
+            },
+            htmlData: { nil },
+            text: {
+                readText = true
+                return "plain"
+            }
+        ))
+
+        XCTAssertEqual(payload.fileExtension, "png")
+        XCTAssertFalse(readTIFF)
+        XCTAssertFalse(readURL)
+        XCTAssertFalse(readRichText)
+        XCTAssertFalse(readText)
+    }
+
     func testPayloadSelectorUsesRichTextBeforeHTMLAndPlainText() throws {
         let rtfPayload = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: [],
+            finderURLs: { [] },
             finderFileMode: .ignore,
-            pngData: nil,
-            tiffAsPNGData: nil,
-            urlString: nil,
-            richTextData: Data("rtf".utf8),
-            htmlData: Data("html".utf8),
-            text: "plain"
+            pngData: { nil },
+            tiffAsPNGData: { nil },
+            urlString: { nil },
+            richTextData: { Data("rtf".utf8) },
+            htmlData: { Data("html".utf8) },
+            text: { "plain" }
         ))
         XCTAssertEqual(rtfPayload.fileExtension, "rtf")
         XCTAssertEqual(rtfPayload.data, Data("rtf".utf8))
 
         let htmlPayload = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: [],
+            finderURLs: { [] },
             finderFileMode: .ignore,
-            pngData: nil,
-            tiffAsPNGData: nil,
-            urlString: nil,
-            richTextData: nil,
-            htmlData: Data("html".utf8),
-            text: "plain"
+            pngData: { nil },
+            tiffAsPNGData: { nil },
+            urlString: { nil },
+            richTextData: { nil },
+            htmlData: { Data("html".utf8) },
+            text: { "plain" }
         ))
         XCTAssertEqual(htmlPayload.fileExtension, "html")
         XCTAssertEqual(htmlPayload.data, Data("html".utf8))
@@ -86,40 +122,40 @@ final class ArchiveSupportTests: XCTestCase {
     func testPayloadSelectorHonorsFinderReferenceCopyAndIgnoreModes() throws {
         let files = [URL(fileURLWithPath: "/tmp/first.txt"), URL(string: "https://example.com")!]
         let reference = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: files,
+            finderURLs: { files },
             finderFileMode: .reference,
-            pngData: nil,
-            tiffAsPNGData: nil,
-            urlString: nil,
-            richTextData: nil,
-            htmlData: nil,
-            text: nil
+            pngData: { nil },
+            tiffAsPNGData: { nil },
+            urlString: { nil },
+            richTextData: { nil },
+            htmlData: { nil },
+            text: { nil }
         ))
         XCTAssertEqual(reference.fileExtension, "txt")
         XCTAssertEqual(String(data: reference.data, encoding: .utf8), "/tmp/first.txt\n")
 
         let copy = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: files,
+            finderURLs: { files },
             finderFileMode: .copy,
-            pngData: nil,
-            tiffAsPNGData: nil,
-            urlString: nil,
-            richTextData: nil,
-            htmlData: nil,
-            text: nil
+            pngData: { nil },
+            tiffAsPNGData: { nil },
+            urlString: { nil },
+            richTextData: { nil },
+            htmlData: { nil },
+            text: { nil }
         ))
         XCTAssertEqual(copy.fileExtension, "files")
         XCTAssertEqual(copy.fileURLs, [URL(fileURLWithPath: "/tmp/first.txt")])
 
         let ignored = try XCTUnwrap(ArchivePayloadSelector.select(
-            finderURLs: files,
+            finderURLs: { files },
             finderFileMode: .ignore,
-            pngData: nil,
-            tiffAsPNGData: nil,
-            urlString: nil,
-            richTextData: nil,
-            htmlData: nil,
-            text: "fallback"
+            pngData: { nil },
+            tiffAsPNGData: { nil },
+            urlString: { files[0].absoluteString },
+            richTextData: { nil },
+            htmlData: { nil },
+            text: { "fallback" }
         ))
         XCTAssertEqual(ignored.fileExtension, "txt")
         XCTAssertEqual(String(data: ignored.data, encoding: .utf8), "fallback")
