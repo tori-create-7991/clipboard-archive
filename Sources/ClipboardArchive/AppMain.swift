@@ -42,7 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let view = SettingsView(state: state) { [weak self] in self?.chooseDestination() }
+        let view = SettingsView(
+            state: state,
+            chooseDestination: { [weak self] in self?.chooseDestination() },
+            openArchiveFolder: { [weak self] in self?.openArchiveFolder() }
+        )
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Clipboard Archive"
@@ -55,6 +59,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
+
+    @objc private func openArchiveFolder() {
+        let url = state.destinationURL
+        do {
+            try FileManager.default.createDirectory(
+                at: url,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            if NSWorkspace.shared.open(url) {
+                state.lastError = nil
+                state.lastMessage = "Archive folder opened"
+            } else {
+                state.lastError = "Could not open archive folder: \(url.path)"
+            }
+        } catch {
+            state.lastError = error.localizedDescription
+        }
+        rebuildMenu()
+    }
 
     private func chooseDestination() {
         let panel = NSOpenPanel()
@@ -90,6 +114,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let toggle = NSMenuItem(title: state.isMonitoring ? "Pause Monitoring" : "Resume Monitoring", action: #selector(toggleMonitoring), keyEquivalent: "p")
         toggle.target = self
         menu.addItem(toggle)
+        let openFolder = NSMenuItem(title: "Open Archive Folder", action: #selector(openArchiveFolder), keyEquivalent: "o")
+        openFolder.target = self
+        menu.addItem(openFolder)
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
@@ -103,6 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 private struct SettingsView: View {
     @ObservedObject var state: AppState
     let chooseDestination: () -> Void
+    let openArchiveFolder: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -138,7 +166,10 @@ private struct SettingsView: View {
             Divider()
             Text("Save folder").font(.headline)
             Text(state.destinationPath).font(.caption).textSelection(.enabled).lineLimit(2)
-            Button("Choose folder…", action: chooseDestination)
+            HStack {
+                Button("Open Archive Folder", action: openArchiveFolder)
+                Button("Choose folder…", action: chooseDestination)
+            }
             Text("Choose a folder that is not managed by iCloud Drive or another sync service if the archive must stay on this Mac.")
                 .font(.caption).foregroundStyle(.secondary)
             Text(state.lastError.map { "Error: \($0)" } ?? state.lastMessage)

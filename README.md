@@ -14,7 +14,7 @@ swift test
 open "build/Clipboard Archive.app"
 ```
 
-The app appears as a clipboard icon in the menu bar. It starts monitoring by default, but only archives clipboard changes made after the app starts. Open **Settings…** to choose the content types, select the local destination folder, or change Finder file handling. The default folder is `~/Library/Application Support/Clipboard Archive`.
+The app appears as a clipboard icon in the menu bar. It starts monitoring by default, but only archives clipboard changes made after the app starts. Choose **Open Archive Folder** from the menu bar or settings to browse saved clipboard history in Finder. The folder is created if it does not exist yet. Open **Settings…** to choose the content types, select the local destination folder, or change Finder file handling. The default folder is `~/Library/Application Support/Clipboard Archive`.
 
 On first programmatic access to the general pasteboard, macOS may ask whether to allow Clipboard Archive to access the clipboard. Allow or deny that request in the OS prompt; the app does not bypass it. If access was denied, change Clipboard Archive's pasteboard access in the relevant **System Settings > Privacy & Security** pane for your macOS version. Clipboard Archive does not request Screen Recording permission.
 
